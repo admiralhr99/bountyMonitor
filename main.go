@@ -169,23 +169,23 @@ func runCheck() error {
 	return nil
 }
 
+// ProgramScope represents a program with newly discovered scopes
+type ProgramScope struct {
+	Program Program
+	Scopes  []Scope
+}
+
 // Changes holds all detected changes between runs
 type Changes struct {
 	newPrograms []Program
-	newScopes   map[string]struct {
-		Program Program
-		Scopes  []Scope
-	}
+	newScopes   map[string]ProgramScope // Changed to use the ProgramScope type
 }
 
 // findChanges identifies new programs and new in-scope targets
 func findChanges(previous, current []Program) Changes {
 	changes := Changes{
 		newPrograms: []Program{},
-		newScopes: make(map[string]struct {
-			Program Program
-			Scopes  []Scope
-		}),
+		newScopes:   make(map[string]ProgramScope), // Changed to match the struct definition
 	}
 
 	// Create map of previous program handles
@@ -234,16 +234,17 @@ func findChanges(previous, current []Program) Changes {
 
 				// Check if this scope is new
 				if prevProgram, exists := previousScopes[program.Handle]; !exists || !prevProgram[key] {
-					if _, ok := changes.newScopes[program.Handle]; !ok {
-						changes.newScopes[program.Handle] = struct {
-							Program Program
-							Scopes  []Scope
-						}{
+					// Create or update the entry in newScopes
+					programEntry, ok := changes.newScopes[program.Handle]
+					if !ok {
+						programEntry = ProgramScope{ // Fixed to use the ProgramScope type
 							Program: program,
 							Scopes:  []Scope{},
 						}
 					}
-					changes.newScopes[program.Handle].Scopes = append(changes.newScopes[program.Handle].Scopes, scope)
+
+					programEntry.Scopes = append(programEntry.Scopes, scope)
+					changes.newScopes[program.Handle] = programEntry
 				}
 			}
 		}
@@ -268,7 +269,7 @@ func formatChangeNotification(changes Changes) string {
 		for _, program := range changes.newPrograms {
 			notification.WriteString(fmt.Sprintf("=== NEW PROGRAM: %s (%s) ===\n", program.Name, program.Handle))
 			notification.WriteString(fmt.Sprintf("Program URL: %s\n", program.URL))
-			notification.WriteString(fmt.Sprintf("Program Type: %s\n", getProgramType(program)))
+			notification.WriteString(fmt.Sprintf("Program Type: %s\n", getProgramType(program))) // Missing function implementation
 			notification.WriteString(fmt.Sprintf("Managed by HackerOne: %t\n", program.ManagedProgram))
 			notification.WriteString(fmt.Sprintf("Offers Bounties: %t\n\n", program.OffersBounties))
 
@@ -317,7 +318,7 @@ func formatChangeNotification(changes Changes) string {
 
 			notification.WriteString(fmt.Sprintf("=== %s (%s) ===\n", program.Name, program.Handle))
 			notification.WriteString(fmt.Sprintf("Program URL: %s\n", program.URL))
-			notification.WriteString(fmt.Sprintf("Program Type: %s\n", getProgramType(program)))
+			notification.WriteString(fmt.Sprintf("Program Type: %s\n", getProgramType(program))) // Missing function implementation
 			notification.WriteString(fmt.Sprintf("Offers Bounties: %t\n", program.OffersBounties))
 
 			// Sort scopes for consistent output
@@ -394,7 +395,7 @@ func loadPreviousData() ([]Program, error) {
 	return programs, nil
 }
 
-// Hackerone data for the next run
+// savePreviousData saves the current Hackerone data for the next run
 func savePreviousData(programs []Program) error {
 	path := filepath.Join(cacheDir, cacheFile)
 	data, err := json.MarshalIndent(programs, "", "  ")
@@ -426,4 +427,15 @@ func isRelevantAssetType(assetType string) bool {
 		"API":        true,
 	}
 	return relevantTypes[assetType]
+}
+
+// getProgramType returns a human-readable program type description
+func getProgramType(program Program) string {
+	if program.ManagedProgram {
+		return "Managed"
+	}
+	if program.OffersBounties {
+		return "Public Bounty"
+	}
+	return "Public VDP"
 }
