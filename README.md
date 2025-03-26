@@ -13,13 +13,22 @@ A lightweight service that monitors HackerOne bug bounty programs for changes, h
 
 ### Prerequisites
 
-- Go 1.16 or higher
+- Go 1.23 or higher
 
-### Building from Source
+### Option 1: Install with `go install`
+
+```bash
+# Install directly using go install
+go install github.com/admiralhr99/bountyMonitor@latest
+```
+
+The binary will be installed to your `$GOPATH/bin` directory, which should be in your PATH.
+
+### Option 2: Building from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/bounty-monitor.git
+git clone https://github.com/admiralhr99/bountyMonitor.git
 cd bounty-monitor
 
 # Build the binary
